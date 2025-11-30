@@ -49,39 +49,37 @@ export default async function handler(req, res) {
     }
 
     // Return HTML that posts message to parent window
-    const message = {
-      token: data.access_token,
-      provider: provider || 'github',
-    };
+    const token = data.access_token;
 
     const html = `
-      <!DOCTYPE html>
-      <html>
-      <head><title>Success!</title></head>
-      <body>
-      <p>Authorization successful! This window should close automatically...</p>
-      <script>
-        (function() {
-          const message = ${JSON.stringify(message)};
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Authorizing...</title>
+  <script>
+    (function() {
+      function receiveMessage(e) {
+        console.log("receiveMessage", e);
+        // Reply to the CMS
+        window.opener.postMessage(
+          'authorization:github:success:{"token":"${token}","provider":"github"}',
+          e.origin
+        );
+      }
 
-          // Post message to opener
-          if (window.opener) {
-            window.opener.postMessage(
-              'authorization:github:success:' + JSON.stringify(message),
-              '*'
-            );
+      window.addEventListener("message", receiveMessage, false);
 
-            // Close window after a short delay
-            setTimeout(function() {
-              window.close();
-            }, 1000);
-          } else {
-            document.body.innerHTML = '<p>Please close this window and return to the CMS.</p>';
-          }
-        })();
-      </script>
-      </body>
-      </html>
+      // Notify the CMS that we're ready
+      console.log("Notifying parent window...");
+      window.opener.postMessage("authorizing:github", "*");
+    })();
+  </script>
+</head>
+<body>
+  <p>Authorized! This window should close automatically.</p>
+</body>
+</html>
     `;
 
     res.status(200).send(html);
